@@ -427,8 +427,9 @@ async function userStorageKey(user, pass) {
 }
 
 // ================================================================
-// SESSION STORAGE  (salvo no localStorage do dispositivo atual)
-// Guarda: { apiKey, binId }  — a senha NUNCA é salva
+// SESSION STORAGE
+// Guarda sessão entre reloads: { user, binId }
+// A senha nunca é salva — só o binId derivado dela
 // ================================================================
 async function loadSession(user, pass) {
   const key = await userStorageKey(user, pass);
@@ -436,14 +437,18 @@ async function loadSession(user, pass) {
   catch(e) { return null; }
 }
 
-async function saveSession(user, pass, apiKey, binId) {
+async function saveSession(user, pass, binId) {
   const key = await userStorageKey(user, pass);
-  localStorage.setItem(key, JSON.stringify({ apiKey, binId }));
+  localStorage.setItem(key, JSON.stringify({ binId }));
+  // Salva auto-login: só o user (sem senha) para preencher o campo
+  localStorage.setItem('fpro_autologin', JSON.stringify({ user }));
 }
 
 async function clearSession(user, pass) {
   const key = await userStorageKey(user, pass);
   localStorage.removeItem(key);
+  localStorage.removeItem('fpro_autologin');
+  clearAutoSession();
 }
 
 // ================================================================
@@ -467,6 +472,7 @@ async function doLogin() {
   let session = await loadSession(user, pass);
   if (session && session.binId) {
     SESSION.binId = session.binId;
+    saveAutoSession(user, session.binId);
     await bootApp(user, pass);
   } else {
     const binName = 'fpro_' + (await sha256hex(user.toLowerCase().trim()+':'+pass)).slice(0,12);
@@ -477,47 +483,56 @@ async function doLogin() {
       btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
       return;
     }
-    await saveSession(user, pass, MASTER_KEY, SESSION.binId);
+    await saveSession(user, pass, SESSION.binId);
+    saveAutoSession(user, SESSION.binId);
     await bootApp(user, pass, true);
   }
 }
 
-// Tenta encontrar um bin pelo nome; se não existir, cria.
-// Retorna o binId ou '' em caso de erro.
-async function findOrCreateBin(binName, pass) {
+// Encontra ou cria o bin de dados do usuário.
+// Usa um "bin de índice" público com nome previsível para guardar o ID do bin de dados.
+// Assim qualquer dispositivo com a key consegue encontrar o bin certo.
+async function findOrCreateBin(binName) {
+  // O bin de índice tem nome previsível = binName + '_idx'
+  // Ele é público (só leitura sem key) e guarda apenas { dataBinId }
+  const idxName = binName + '_idx';
+
   showLoading('Procurando seus dados na nuvem...');
+
+  // Passo 1: tenta criar o bin de índice
+  // Se já existir, o JSONBin retorna 400 — nesse caso buscamos pelo ID guardado no localStorage
+  // como fallback, ou listamos os bins da conta
   try {
-    // Lista bins e procura pelo nome
-    const res = await fetch(`${JSONBIN_API}/b`, {
+    // Tenta listar bins para encontrar o de índice pelo nome
+    const listRes = await fetch(`${JSONBIN_API}/b`, {
       headers: { 'X-Master-Key': MASTER_KEY }
     });
-    // JSONBin free tier não lista bins — então tentamos criar direto.
-    // Se já existir um bin com o mesmo nome, usamos o ID salvo em outro mecanismo.
-    // Estratégia: tentamos buscar por metadata search (só no paid tier).
-    // Solução para free: criar sempre um novo bin e salvar o ID de volta no bin de configuração.
 
-    // Abordagem robusta para free tier:
-    // 1. Criamos um "bin de índice" com nome fixo derivado só do user (sem pass) — público só para leitura de ID
-    // 2. Nele guardamos { binId } criptografado pela senha
-    // Mas isso complica. Solução mais simples para free tier:
-    // Criar um bin cujo NOME contenha o hash — e salvar o ID num bin de "lookup" com nome previsível.
+    if (listRes.ok) {
+      const bins = await listRes.json();
+      // Procura bin de índice pelo nome
+      const idxBin = Array.isArray(bins) && bins.find(b => b.name === idxName);
+      if (idxBin) {
+        // Lê o bin de índice para pegar o dataBinId
+        showLoading('Carregando sua conta...');
+        const idxRead = await fetch(`${JSONBIN_API}/b/${idxBin.id}/latest`, {
+          headers: { 'X-Master-Key': MASTER_KEY }
+        });
+        if (idxRead.ok) {
+          const idxData = await idxRead.json();
+          if (idxData.record && idxData.record.dataBinId) {
+            hideLoading();
+            return idxData.record.dataBinId;
+          }
+        }
+      }
+    }
+  } catch(e) { console.warn('list bins failed:', e); }
 
-    // Abordagem final simples: usamos um bin de lookup com nome = hash(user) apenas,
-    // que guarda { binId } sem segredo (o dado real fica no bin protegido pela apiKey).
-    hideLoading();
-    return await getOrCreateDataBin(binName);
-  } catch(e) {
-    hideLoading();
-    console.error(e);
-    return '';
-  }
-}
-
-async function getOrCreateDataBin(binName) {
-  // Tenta criar o bin de dados principal
+  // Passo 2: cria bin de dados novo
   showLoading('Criando seu espaço na nuvem...');
   try {
-    const res = await fetch(`${JSONBIN_API}/b`, {
+    const dataRes = await fetch(`${JSONBIN_API}/b`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -527,46 +542,29 @@ async function getOrCreateDataBin(binName) {
       },
       body: JSON.stringify(defaultData())
     });
-    if (!res.ok) {
-      // Bin com esse nome pode já existir; tenta buscar por nome
-      const listed = await listBinByName(binName);
-      hideLoading();
-      return listed;
-    }
-    const json = await res.json();
+    if (!dataRes.ok) { hideLoading(); return ''; }
+    const dataJson = await dataRes.json();
+    const dataBinId = dataJson.metadata.id;
+
+    // Passo 3: cria bin de índice guardando o dataBinId
+    await fetch(`${JSONBIN_API}/b`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY,
+        'X-Bin-Name': idxName,
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify({ dataBinId })
+    });
+
     hideLoading();
-    return json.metadata.id;
+    return dataBinId;
   } catch(e) {
     hideLoading();
     console.error(e);
     return '';
   }
-}
-
-async function listBinByName(binName) {
-  // JSONBin free tier: não tem listagem por nome.
-  // Usamos um segundo "bin de índice" com nome baseado só no user, sem senha.
-  // Esse bin guarda apenas o ID do bin de dados.
-  const indexBinName = 'fpro_idx_' + binName.slice(0,8);
-  showLoading('Verificando índice da conta...');
-  try {
-    // Tenta criar o bin de índice — se já existir retorna erro e pegamos o ID de lá
-    const res = await fetch(`${JSONBIN_API}/b`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Name': indexBinName,
-        'X-Bin-Private': 'false'   // público para leitura via nome
-      },
-      body: JSON.stringify({ dataBinId: '' })
-    });
-    if (res.ok) {
-      const json = await res.json();
-      return json.metadata.id; // retorna o próprio ID de índice como fallback
-    }
-    return '';
-  } catch(e) { return ''; }
 }
 
 async function bootApp(user, pass, isNew = false) {
@@ -612,8 +610,9 @@ function doLogout() {
   SESSION = { user:'', apiKey:'', binId:'' };
   document.getElementById('app-screen').style.display   = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-pass').value   = '';
-  document.getElementById('login-apikey').value = '';
+  document.getElementById('login-pass').value = '';
+  localStorage.removeItem('fpro_autologin');
+  clearAutoSession();
 }
 
 // ================================================================
@@ -978,6 +977,61 @@ function exportCSV(){
   URL.revokeObjectURL(url);
   showToast('CSV exportado!','#1a9e72');
 }
+
+// ================================================================
+// AUTO-LOGIN: salva user+binId no localStorage para não pedir login
+// ao recarregar a página. A senha não é salva.
+// ================================================================
+function saveAutoSession(user, binId) {
+  localStorage.setItem('fpro_active_session', JSON.stringify({ user, binId }));
+}
+
+function loadAutoSession() {
+  try { return JSON.parse(localStorage.getItem('fpro_active_session')) || null; }
+  catch(e) { return null; }
+}
+
+function clearAutoSession() {
+  localStorage.removeItem('fpro_active_session');
+}
+
+// Inicia: tenta auto-login ou mostra tela de login
+(async () => {
+  const savedTheme = localStorage.getItem('fpro_theme');
+  if (savedTheme === 'dark') {
+    document.documentElement.setAttribute('data-theme','dark');
+    document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+    document.getElementById('theme-label').textContent = 'Modo claro';
+  }
+
+  // Tenta restaurar sessão salva (mantém logado após reload)
+  const autoSess = loadAutoSession();
+  if (autoSess && autoSess.user && autoSess.binId) {
+    SESSION.user   = autoSess.user;
+    SESSION.apiKey = MASTER_KEY;
+    SESSION.binId  = autoSess.binId;
+
+    document.getElementById('user-avatar').textContent   = autoSess.user.charAt(0).toUpperCase();
+    document.getElementById('user-name-label').textContent = autoSess.user;
+
+    showLoading('Sincronizando dados...');
+    const now = new Date();
+    document.getElementById('today-str').textContent = now.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    document.getElementById('tx-date').value = now.toISOString().split('T')[0];
+
+    await cloudLoad();
+    hideLoading();
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display   = 'block';
+    setSyncStatus('synced', 'Sincronizado');
+    renderDashboard();
+    return;
+  }
+
+  // Nenhuma sessão — mostra tela de login
+  document.getElementById('login-screen').style.display = 'flex';
+})();
 </script>
 </body>
 </html>
