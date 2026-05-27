@@ -201,18 +201,6 @@
       </div>
     </div>
 
-    <hr class="login-divider">
-
-    <p class="apikey-note">
-      <strong>Primeira vez?</strong> Cole sua API Key do <a href="https://jsonbin.io" target="_blank">JSONBin.io</a> abaixo para ativar a nuvem. Nos próximos acessos ela não é mais necessária.
-    </p>
-    <div class="field-group">
-      <label class="field-label">API Key JSONBin <span style="color:var(--text3);font-weight:400">(só na 1ª vez)</span></label>
-      <div class="input-wrap">
-        <i class="fa-solid fa-key"></i>
-        <input type="password" id="login-apikey" placeholder="$2a$10$... (opcional nos próximos acessos)" autocomplete="off">
-      </div>
-    </div>
 
     <button class="btn-primary" id="login-btn" onclick="doLogin()">
       <i class="fa-solid fa-right-to-bracket"></i> Entrar
@@ -409,6 +397,7 @@ const CAT_COLORS   = {'Alimentação':'#2e6db4','Transporte':'#d85a30','Saúde':
 const CAT_ICONS    = {'Alimentação':'fa-utensils','Transporte':'fa-car','Saúde':'fa-heart-pulse','Lazer':'fa-gamepad','Moradia':'fa-house','Educação':'fa-book-open','Vestuário':'fa-shirt','Salário':'fa-briefcase','Freelance':'fa-laptop','Assinaturas':'fa-rotate','Investimentos':'fa-chart-line','Extras':'fa-star','Outros':'fa-ellipsis'};
 const PAGE_TITLES  = {dashboard:'Painel',transactions:'Transações',add:'Nova Transação',goals:'Metas',stats:'Estatísticas'};
 const JSONBIN_API  = 'https://api.jsonbin.io/v3';
+const MASTER_KEY   = '$2a$10$H8/dbUWlIFxYwYbkKH/iwuYxlNFW1ycU9EmaWExCh7/XVeVCe1C3O';
 
 // ================================================================
 // STATE
@@ -461,11 +450,10 @@ async function clearSession(user, pass) {
 // LOGIN FLOW
 // ================================================================
 async function doLogin() {
-  const user   = document.getElementById('login-user').value.trim();
-  const pass   = document.getElementById('login-pass').value;
-  const apikey = document.getElementById('login-apikey').value.trim();
-  const errEl  = document.getElementById('login-error');
-  const btn    = document.getElementById('login-btn');
+  const user  = document.getElementById('login-user').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
 
   errEl.textContent = '';
   if (!user || !pass) { errEl.textContent = 'Preencha usuário e senha.'; return; }
@@ -473,39 +461,23 @@ async function doLogin() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
 
-  // Tenta carregar sessão salva neste dispositivo
-  let session = await loadSession(user, pass);
+  SESSION.user   = user;
+  SESSION.apiKey = MASTER_KEY;
 
-  if (session) {
-    // Dispositivo já conhecido — usa credenciais salvas
-    SESSION.user   = user;
-    SESSION.apiKey = session.apiKey;
-    SESSION.binId  = session.binId;
+  let session = await loadSession(user, pass);
+  if (session && session.binId) {
+    SESSION.binId = session.binId;
     await bootApp(user, pass);
   } else {
-    // Primeiro acesso neste dispositivo — exige API key
-    if (!apikey) {
-      errEl.textContent = 'Primeira vez neste dispositivo: cole sua API Key do JSONBin.';
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
-      return;
-    }
-    SESSION.user   = user;
-    SESSION.apiKey = apikey;
-    SESSION.binId  = '';
-
-    // Tenta carregar bin existente para este usuário (bin name = hash do user+pass)
     const binName = 'fpro_' + (await sha256hex(user.toLowerCase().trim()+':'+pass)).slice(0,12);
     SESSION.binId = await findOrCreateBin(binName, pass);
-
     if (!SESSION.binId) {
-      errEl.textContent = 'Erro ao conectar à nuvem. Verifique sua API Key.';
+      errEl.textContent = 'Erro ao conectar à nuvem. Tente novamente.';
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
       return;
     }
-
-    await saveSession(user, pass, apikey, SESSION.binId);
+    await saveSession(user, pass, MASTER_KEY, SESSION.binId);
     await bootApp(user, pass, true);
   }
 }
@@ -517,7 +489,7 @@ async function findOrCreateBin(binName, pass) {
   try {
     // Lista bins e procura pelo nome
     const res = await fetch(`${JSONBIN_API}/b`, {
-      headers: { 'X-Master-Key': SESSION.apiKey }
+      headers: { 'X-Master-Key': MASTER_KEY }
     });
     // JSONBin free tier não lista bins — então tentamos criar direto.
     // Se já existir um bin com o mesmo nome, usamos o ID salvo em outro mecanismo.
@@ -549,7 +521,7 @@ async function getOrCreateDataBin(binName) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': SESSION.apiKey,
+        'X-Master-Key': MASTER_KEY,
         'X-Bin-Name': binName,
         'X-Bin-Private': 'true'
       },
@@ -583,7 +555,7 @@ async function listBinByName(binName) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': SESSION.apiKey,
+        'X-Master-Key': MASTER_KEY,
         'X-Bin-Name': indexBinName,
         'X-Bin-Private': 'false'   // público para leitura via nome
       },
@@ -712,11 +684,11 @@ function setSyncStatus(state, label) {
 }
 
 async function cloudLoad() {
-  if (!SESSION.apiKey || !SESSION.binId) return false;
+  if (!SESSION.binId) return false;
   setSyncStatus('syncing','Carregando...');
   try {
     const res = await fetch(`${JSONBIN_API}/b/${SESSION.binId}/latest`, {
-      headers: { 'X-Master-Key': SESSION.apiKey }
+      headers: { 'X-Master-Key': MASTER_KEY }
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
@@ -737,7 +709,7 @@ async function cloudLoad() {
 }
 
 async function cloudSave() {
-  if (!SESSION.apiKey || !SESSION.binId || isSyncing) return;
+  if (!SESSION.binId || isSyncing) return;
   isSyncing = true;
   setSyncStatus('syncing','Salvando...');
   try {
@@ -745,7 +717,7 @@ async function cloudSave() {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': SESSION.apiKey
+        'X-Master-Key': MASTER_KEY
       },
       body: JSON.stringify(data)
     });
