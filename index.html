@@ -12,36 +12,37 @@
 
 <!-- ✅ COLE AQUI AS SUAS CONFIGS DO FIREBASE -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+try {
+  const { initializeApp }    = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+  const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged }
+    = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+  const { getFirestore, doc, setDoc, getDoc, onSnapshot }
+    = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
 
-// ══════════════════════════════════════════════════════
-//  🔧 SUBSTITUA PELOS SEUS DADOS DO FIREBASE
-// ══════════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey:            "AIzaSyDdi4sELcv5mFr-hoekyhHfO35bq-XE5Lg",
-  authDomain:        "controle-de-gasto-c6e44.firebaseapp.com",
-  projectId:         "controle-de-gasto-c6e44",
-  storageBucket:     "controle-de-gasto-c6e44.firebasestorage.app",
-  messagingSenderId: "422180121411",
-  appId:             "1:422180121411:web:86de2596253a2c91625df6"
-};
-// ══════════════════════════════════════════════════════
+  const firebaseConfig = {
+    apiKey:            "AIzaSyDdi4sELcv5mFr-hoekyhHfO35bq-XE5Lg",
+    authDomain:        "controle-de-gasto-c6e44.firebaseapp.com",
+    projectId:         "controle-de-gasto-c6e44",
+    storageBucket:     "controle-de-gasto-c6e44.firebasestorage.app",
+    messagingSenderId: "422180121411",
+    appId:             "1:422180121411:web:86de2596253a2c91625df6"
+  };
 
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
 
-// Expõe para o código global
-window._auth    = auth;
-window._db      = db;
-window._fbFns   = { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, doc, setDoc, getDoc, onSnapshot };
+  window._auth  = auth;
+  window._db    = db;
+  window._fbFns = { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, doc, setDoc, getDoc, onSnapshot };
 
-// Dispara evento quando Firebase estiver pronto
-window.dispatchEvent(new Event('firebase-ready'));
+  window.dispatchEvent(new Event('firebase-ready'));
+} catch(err) {
+  console.error('Firebase init error:', err);
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error').textContent = '⚠ Erro ao carregar Firebase: ' + err.message;
+}
 </script>
 
 <style>
@@ -502,14 +503,10 @@ function defaultData() {
 // ================================================================
 window.addEventListener('firebase-ready', () => {
   const { onAuthStateChanged } = window._fbFns;
-
-  // Observa estado de autenticação — Firebase já mantém sessão sozinho
   onAuthStateChanged(window._auth, async (user) => {
     if (user) {
-      // Usuário logado (ou sessão restaurada automaticamente)
       await initApp(user);
     } else {
-      // Não logado — mostra tela de login
       hideLoading();
       document.getElementById('login-screen').style.display = 'flex';
     }
