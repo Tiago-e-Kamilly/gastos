@@ -3,12 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinançasPRO — Login</title>
+<title>FinançasPRO</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<!-- ✅ COLE AQUI AS SUAS CONFIGS DO FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ══════════════════════════════════════════════════════
+//  🔧 SUBSTITUA PELOS SEUS DADOS DO FIREBASE
+// ══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyDdi4sELcv5mFr-hoekyhHfO35bq-XE5Lg",
+  authDomain:        "controle-de-gasto-c6e44.firebaseapp.com",
+  projectId:         "controle-de-gasto-c6e44",
+  storageBucket:     "controle-de-gasto-c6e44.firebasestorage.app",
+  messagingSenderId: "422180121411",
+  appId:             "1:422180121411:web:86de2596253a2c91625df6"
+};
+// ══════════════════════════════════════════════════════
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// Expõe para o código global
+window._auth    = auth;
+window._db      = db;
+window._fbFns   = { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, doc, setDoc, getDoc, onSnapshot };
+
+// Dispara evento quando Firebase estiver pronto
+window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -29,45 +64,37 @@
   html{font-size:15px}
   body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s}
 
-  /* ============================================================
-     LOGIN SCREEN
-  ============================================================ */
-  #login-screen {
-    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;
-    background:var(--bg);
-  }
-  .login-card {
-    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-    padding:2.4rem 2rem;width:100%;max-width:400px;box-shadow:var(--shadow);
-  }
-  .login-logo {
-    display:flex;align-items:center;gap:12px;margin-bottom:2rem;
-  }
-  .login-logo-icon {
-    width:42px;height:42px;background:var(--green);border-radius:10px;
-    display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;
-  }
-  .login-logo span { font-size:20px;font-weight:600; }
-  .login-subtitle { font-size:13px;color:var(--text2);margin-bottom:1.8rem;line-height:1.6; }
-  .field-group { margin-bottom:14px; }
+  /* LOGIN */
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2.4rem 2rem;width:100%;max-width:400px;box-shadow:var(--shadow)}
+  .login-logo{display:flex;align-items:center;gap:12px;margin-bottom:1.6rem}
+  .login-logo-icon{width:42px;height:42px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+  .login-logo span{font-size:20px;font-weight:600}
+  .login-subtitle{font-size:13px;color:var(--text2);margin-bottom:1.6rem;line-height:1.6}
+  .field-group{margin-bottom:14px}
   label.field-label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-  .input-wrap { position:relative; }
-  .input-wrap i { position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px; }
-  input,select { width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:var(--font);font-size:14px;transition:border-color .15s }
+  .input-wrap{position:relative}
+  .input-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px}
+  .input-wrap input{padding-left:36px}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:var(--font);font-size:14px;transition:border-color .15s}
   input:focus,select:focus{outline:none;border-color:var(--green)}
-  .login-divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
-  .apikey-note { font-size:12px;color:var(--text3);margin-bottom:8px;line-height:1.5; }
-  .apikey-note a { color:var(--blue); }
+  .tab-row{display:flex;gap:0;margin-bottom:1.4rem;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden}
+  .tab-btn{flex:1;padding:9px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;background:var(--surface);color:var(--text2);transition:all .15s}
+  .tab-btn.active{background:var(--green);color:#fff}
   .btn-primary{width:100%;padding:11px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;transition:opacity .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px}
   .btn-primary:hover{opacity:.9}.btn-primary:active{transform:scale(.98)}
   .btn-primary:disabled{opacity:.6;cursor:not-allowed}
   .login-error{font-size:13px;color:var(--red);text-align:center;margin-top:10px;min-height:18px}
   .login-info{font-size:12px;color:var(--text3);text-align:center;margin-top:14px;line-height:1.6}
 
-  /* ============================================================
-     APP (hidden until logged in)
-  ============================================================ */
-  #app-screen { display:none; }
+  /* LOADING */
+  .loading-overlay{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+  .spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-msg{font-size:14px;color:var(--text2)}
+
+  /* APP */
+  #app-screen{display:none}
   .layout{display:flex;min-height:100vh}
   .sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .25s}
   .sidebar-logo{font-size:17px;font-weight:600;color:var(--text);margin-bottom:2rem;padding:0 .5rem;display:flex;align-items:center;gap:10px}
@@ -77,6 +104,8 @@
   .nav-item.active{background:var(--surface2);color:var(--text);font-weight:500}
   .nav-item i{width:18px;text-align:center;font-size:15px}
   .sidebar-footer{margin-top:auto;padding-top:1rem;border-top:1px solid var(--border)}
+  .user-badge{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius-sm);background:var(--surface2);font-size:13px;font-weight:500;margin-bottom:8px}
+  .user-badge .avatar{width:28px;height:28px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
   .main{margin-left:220px;flex:1;padding:2rem;max-width:1100px}
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem}
   .topbar-left h1{font-size:22px;font-weight:600}
@@ -113,7 +142,6 @@
   .bar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
   .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
   .form-full{grid-column:1/-1}
-  .form-input { padding:9px 12px!important; }
   .type-toggle{display:flex;gap:8px;margin-bottom:16px}
   .type-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border2);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;background:var(--surface);color:var(--text2)}
   .type-btn.active-exp{background:var(--red-bg);color:var(--red);border-color:var(--red)}
@@ -141,7 +169,7 @@
   .chart-legend{display:flex;gap:16px;margin-bottom:10px;font-size:12px;color:var(--text2)}
   .chart-legend span{display:flex;align-items:center;gap:5px}
   .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;opacity:0;transition:all .25s;z-index:999;pointer-events:none;white-space:nowrap}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:10px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;opacity:0;transition:all .25s;z-index:999;pointer-events:none;white-space:nowrap}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .sync-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3);padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border)}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .3s}
@@ -149,9 +177,6 @@
   .sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite}
   .sync-dot.error{background:var(--red)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  .user-badge{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius-sm);background:var(--surface2);font-size:13px;font-weight:500;margin-bottom:8px}
-  .user-badge .avatar{width:28px;height:28px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
-  .form-plain input, .form-plain select { padding:9px 12px; }
 
   @media(max-width:768px){
     .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
@@ -162,230 +187,224 @@
   @media(max-width:420px){.metrics-grid{grid-template-columns:1fr}}
   ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-
-  /* Loading overlay */
-  .loading-overlay{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
-  .spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .loading-msg{font-size:14px;color:var(--text2)}
 </style>
 </head>
 <body>
 
 <div id="toast"></div>
 
-<!-- ============================================================
-     LOGIN SCREEN
-============================================================ -->
-<div id="login-screen">
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Conectando...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:none">
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-icon"><i class="fa-solid fa-wallet"></i></div>
       <span>FinançasPRO</span>
     </div>
-    <p class="login-subtitle">Faça login para acessar seus dados financeiros em qualquer dispositivo.</p>
+    <p class="login-subtitle">Acesse seus dados de qualquer dispositivo, sincronizados em tempo real.</p>
 
-    <div class="field-group">
-      <label class="field-label">Usuário</label>
-      <div class="input-wrap">
-        <i class="fa-solid fa-user"></i>
-        <input type="text" id="login-user" placeholder="Seu nome de usuário" autocomplete="username">
-      </div>
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Entrar</button>
+      <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Criar conta</button>
     </div>
 
+    <div class="field-group">
+      <label class="field-label">E-mail</label>
+      <div class="input-wrap">
+        <i class="fa-solid fa-envelope"></i>
+        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+    </div>
     <div class="field-group">
       <label class="field-label">Senha</label>
       <div class="input-wrap">
         <i class="fa-solid fa-lock"></i>
-        <input type="password" id="login-pass" placeholder="Sua senha" autocomplete="current-password">
+        <input type="password" id="login-pass" placeholder="Mínimo 6 caracteres" autocomplete="current-password">
       </div>
     </div>
 
-
     <button class="btn-primary" id="login-btn" onclick="doLogin()">
-      <i class="fa-solid fa-right-to-bracket"></i> Entrar
+      <i class="fa-solid fa-right-to-bracket"></i>
+      <span id="login-btn-label">Entrar</span>
     </button>
     <div class="login-error" id="login-error"></div>
-    <p class="login-info">Seus dados ficam salvos na nuvem e sincronizam automaticamente entre dispositivos.</p>
+    <p class="login-info">Seus dados ficam na nuvem e sincronizam instantaneamente entre todos os dispositivos.</p>
   </div>
 </div>
 
-<!-- Loading overlay -->
-<div class="loading-overlay" id="loading-overlay" style="display:none">
-  <div class="spinner"></div>
-  <div class="loading-msg" id="loading-msg">Conectando à nuvem...</div>
-</div>
-
-<!-- ============================================================
-     APP SCREEN
-============================================================ -->
+<!-- APP -->
 <div id="app-screen">
-<div class="layout">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon"><i class="fa-solid fa-wallet"></i></div>
-      FinançasPRO
-    </div>
-    <button class="nav-item active" onclick="switchPage('dashboard',this)"><i class="fa-solid fa-chart-pie"></i> Painel</button>
-    <button class="nav-item" onclick="switchPage('transactions',this)"><i class="fa-solid fa-list-ul"></i> Transações</button>
-    <button class="nav-item" onclick="switchPage('add',this)"><i class="fa-solid fa-plus"></i> Adicionar</button>
-    <button class="nav-item" onclick="switchPage('goals',this)"><i class="fa-solid fa-bullseye"></i> Metas</button>
-    <button class="nav-item" onclick="switchPage('stats',this)"><i class="fa-solid fa-chart-line"></i> Estatísticas</button>
-    <div class="sidebar-footer">
-      <div class="user-badge">
-        <div class="avatar" id="user-avatar">?</div>
-        <span id="user-name-label">Usuário</span>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon"><i class="fa-solid fa-wallet"></i></div>
+        FinançasPRO
       </div>
-      <button class="nav-item" onclick="doLogout()" style="margin-bottom:6px">
-        <i class="fa-solid fa-right-from-bracket"></i> Sair
-      </button>
-      <button class="nav-item" onclick="toggleTheme()">
-        <i class="fa-solid fa-moon" id="theme-icon"></i> <span id="theme-label">Modo escuro</span>
-      </button>
-    </div>
-  </aside>
-
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
-
-  <main class="main">
-    <div class="topbar">
-      <div class="topbar-left">
-        <h1 id="page-heading">Painel</h1>
-        <p id="today-str"></p>
-      </div>
-      <div class="topbar-right">
-        <div class="sync-status" id="sync-status" title="Status da sincronização">
-          <div class="sync-dot" id="sync-dot"></div>
-          <span id="sync-label">Local</span>
+      <button class="nav-item active" onclick="switchPage('dashboard',this)"><i class="fa-solid fa-chart-pie"></i> Painel</button>
+      <button class="nav-item" onclick="switchPage('transactions',this)"><i class="fa-solid fa-list-ul"></i> Transações</button>
+      <button class="nav-item" onclick="switchPage('add',this)"><i class="fa-solid fa-plus"></i> Adicionar</button>
+      <button class="nav-item" onclick="switchPage('goals',this)"><i class="fa-solid fa-bullseye"></i> Metas</button>
+      <button class="nav-item" onclick="switchPage('stats',this)"><i class="fa-solid fa-chart-line"></i> Estatísticas</button>
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <div class="avatar" id="user-avatar">?</div>
+          <span id="user-name-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Usuário</span>
         </div>
-        <button class="btn-icon hamburger" onclick="openSidebar()" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
-        <button class="btn-icon" onclick="exportCSV()" title="Exportar CSV"><i class="fa-solid fa-download"></i></button>
-        <button class="btn-icon" onclick="switchPage('add',null)" title="Nova transação"><i class="fa-solid fa-plus"></i></button>
+        <button class="nav-item" onclick="doLogout()" style="margin-bottom:6px">
+          <i class="fa-solid fa-right-from-bracket"></i> Sair
+        </button>
+        <button class="nav-item" onclick="toggleTheme()">
+          <i class="fa-solid fa-moon" id="theme-icon"></i> <span id="theme-label">Modo escuro</span>
+        </button>
       </div>
-    </div>
+    </aside>
 
-    <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
-      <div class="month-nav">
-        <button onclick="changeMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-        <span class="month-label" id="month-display"></span>
-        <button onclick="changeMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
-      </div>
-      <div class="metrics-grid" id="metrics-grid"></div>
-      <div class="grid-2">
-        <div class="panel">
-          <div class="panel-title">Gastos por categoria</div>
-          <div id="cat-bars"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-heading">Painel</h1>
+          <p id="today-str"></p>
         </div>
-        <div class="panel">
-          <div class="panel-title">Evolução mensal</div>
-          <div class="chart-legend">
-            <span><span class="legend-dot" style="background:#1a9e72"></span>Receitas</span>
-            <span><span class="legend-dot" style="background:#d85a30"></span>Despesas</span>
+        <div class="topbar-right">
+          <div class="sync-status" id="sync-status">
+            <div class="sync-dot synced" id="sync-dot"></div>
+            <span id="sync-label">Sincronizado</span>
           </div>
-          <div style="position:relative;height:200px"><canvas id="trend-chart"></canvas></div>
+          <button class="btn-icon hamburger" onclick="openSidebar()"><i class="fa-solid fa-bars"></i></button>
+          <button class="btn-icon" onclick="exportCSV()" title="Exportar CSV"><i class="fa-solid fa-download"></i></button>
+          <button class="btn-icon" onclick="switchPage('add',null)"><i class="fa-solid fa-plus"></i></button>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-title">Últimas transações</div>
-        <div id="recent-list"></div>
-      </div>
-    </div>
 
-    <!-- TRANSACTIONS -->
-    <div class="page" id="page-transactions">
-      <div class="filter-bar">
-        <button class="filter-chip active" onclick="setFilter('all',this)">Todos</button>
-        <button class="filter-chip" onclick="setFilter('income',this)">Receitas</button>
-        <button class="filter-chip" onclick="setFilter('expense',this)">Despesas</button>
-      </div>
-      <div class="panel"><div id="all-tx-list"></div></div>
-    </div>
-
-    <!-- ADD -->
-    <div class="page" id="page-add">
-      <div style="max-width:520px">
-        <div class="panel form-plain">
-          <div class="panel-title">Nova transação</div>
-          <div class="type-toggle">
-            <button class="type-btn active-exp" id="btn-exp" onclick="setTxType('expense')"><i class="fa-solid fa-arrow-trend-down"></i> Despesa</button>
-            <button class="type-btn" id="btn-inc" onclick="setTxType('income')"><i class="fa-solid fa-arrow-trend-up"></i> Receita</button>
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="month-nav">
+          <button onclick="changeMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+          <span class="month-label" id="month-display"></span>
+          <button onclick="changeMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <div class="metrics-grid" id="metrics-grid"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-title">Gastos por categoria</div>
+            <div id="cat-bars"></div>
           </div>
-          <div class="form-row">
-            <div class="form-full">
-              <label class="field-label">Descrição</label>
-              <input type="text" id="tx-desc" placeholder="Ex: Supermercado, Salário...">
+          <div class="panel">
+            <div class="panel-title">Evolução mensal</div>
+            <div class="chart-legend">
+              <span><span class="legend-dot" style="background:#1a9e72"></span>Receitas</span>
+              <span><span class="legend-dot" style="background:#d85a30"></span>Despesas</span>
             </div>
-            <div>
-              <label class="field-label">Valor (R$)</label>
-              <input type="number" id="tx-amount" placeholder="0,00" min="0" step="0.01">
-            </div>
-            <div>
-              <label class="field-label">Data</label>
-              <input type="date" id="tx-date">
-            </div>
-            <div class="form-full">
-              <label class="field-label">Categoria</label>
-              <select id="tx-cat">
-                <optgroup label="Despesas">
-                  <option>Alimentação</option><option>Transporte</option><option>Moradia</option>
-                  <option>Saúde</option><option>Lazer</option><option>Educação</option>
-                  <option>Vestuário</option><option>Assinaturas</option><option>Outros</option>
-                </optgroup>
-                <optgroup label="Receitas">
-                  <option>Salário</option><option>Freelance</option><option>Investimentos</option><option>Extras</option>
-                </optgroup>
-              </select>
-            </div>
+            <div style="position:relative;height:200px"><canvas id="trend-chart"></canvas></div>
           </div>
-          <button class="btn-primary-sm" onclick="addTransaction()"><i class="fa-solid fa-plus"></i> Adicionar transação</button>
-          <div id="add-feedback" style="font-size:13px;text-align:center;height:18px;margin-top:8px"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Últimas transações</div>
+          <div id="recent-list"></div>
         </div>
       </div>
-    </div>
 
-    <!-- GOALS -->
-    <div class="page" id="page-goals">
-      <div class="grid-2">
-        <div class="panel">
-          <div class="panel-title">Minhas metas</div>
-          <div id="goals-list"></div>
+      <!-- TRANSACTIONS -->
+      <div class="page" id="page-transactions">
+        <div class="filter-bar">
+          <button class="filter-chip active" onclick="setFilter('all',this)">Todos</button>
+          <button class="filter-chip" onclick="setFilter('income',this)">Receitas</button>
+          <button class="filter-chip" onclick="setFilter('expense',this)">Despesas</button>
         </div>
-        <div class="panel form-plain">
-          <div class="panel-title">Nova meta</div>
-          <div style="margin-bottom:12px">
-            <label class="field-label">Nome da meta</label>
-            <input type="text" id="goal-name" placeholder="Ex: Viagem, Carro, Reserva...">
-          </div>
-          <div class="form-row">
-            <div><label class="field-label">Valor alvo (R$)</label><input type="number" id="goal-target" placeholder="0,00" min="0" step="0.01"></div>
-            <div><label class="field-label">Já guardado (R$)</label><input type="number" id="goal-saved" placeholder="0,00" min="0" step="0.01"></div>
-          </div>
-          <button class="btn-primary-sm" onclick="addGoal()"><i class="fa-solid fa-bullseye"></i> Criar meta</button>
-        </div>
+        <div class="panel"><div id="all-tx-list"></div></div>
       </div>
-    </div>
 
-    <!-- STATS -->
-    <div class="page" id="page-stats">
-      <div class="grid-2" style="margin-bottom:1.5rem">
-        <div class="panel">
-          <div class="panel-title">Receitas × Despesas (6 meses)</div>
-          <div style="position:relative;height:240px"><canvas id="bar-chart"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="panel-title">Distribuição de gastos</div>
-          <div style="position:relative;height:240px"><canvas id="donut-chart"></canvas></div>
+      <!-- ADD -->
+      <div class="page" id="page-add">
+        <div style="max-width:520px">
+          <div class="panel">
+            <div class="panel-title">Nova transação</div>
+            <div class="type-toggle">
+              <button class="type-btn active-exp" id="btn-exp" onclick="setTxType('expense')"><i class="fa-solid fa-arrow-trend-down"></i> Despesa</button>
+              <button class="type-btn" id="btn-inc" onclick="setTxType('income')"><i class="fa-solid fa-arrow-trend-up"></i> Receita</button>
+            </div>
+            <div class="form-row">
+              <div class="form-full">
+                <label class="field-label">Descrição</label>
+                <input type="text" id="tx-desc" placeholder="Ex: Supermercado, Salário...">
+              </div>
+              <div>
+                <label class="field-label">Valor (R$)</label>
+                <input type="number" id="tx-amount" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div>
+                <label class="field-label">Data</label>
+                <input type="date" id="tx-date">
+              </div>
+              <div class="form-full">
+                <label class="field-label">Categoria</label>
+                <select id="tx-cat">
+                  <optgroup label="Despesas">
+                    <option>Alimentação</option><option>Transporte</option><option>Moradia</option>
+                    <option>Saúde</option><option>Lazer</option><option>Educação</option>
+                    <option>Vestuário</option><option>Assinaturas</option><option>Outros</option>
+                  </optgroup>
+                  <optgroup label="Receitas">
+                    <option>Salário</option><option>Freelance</option><option>Investimentos</option><option>Extras</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+            <button class="btn-primary-sm" onclick="addTransaction()"><i class="fa-solid fa-plus"></i> Adicionar transação</button>
+            <div id="add-feedback" style="font-size:13px;text-align:center;height:18px;margin-top:8px"></div>
+          </div>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-title">Saldo acumulado (6 meses)</div>
-        <div style="position:relative;height:200px"><canvas id="balance-chart"></canvas></div>
+
+      <!-- GOALS -->
+      <div class="page" id="page-goals">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-title">Minhas metas</div>
+            <div id="goals-list"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Nova meta</div>
+            <div style="margin-bottom:12px">
+              <label class="field-label">Nome da meta</label>
+              <input type="text" id="goal-name" placeholder="Ex: Viagem, Carro, Reserva...">
+            </div>
+            <div class="form-row">
+              <div><label class="field-label">Valor alvo (R$)</label><input type="number" id="goal-target" placeholder="0,00" min="0" step="0.01"></div>
+              <div><label class="field-label">Já guardado (R$)</label><input type="number" id="goal-saved" placeholder="0,00" min="0" step="0.01"></div>
+            </div>
+            <button class="btn-primary-sm" onclick="addGoal()"><i class="fa-solid fa-bullseye"></i> Criar meta</button>
+          </div>
+        </div>
       </div>
-    </div>
-  </main>
+
+      <!-- STATS -->
+      <div class="page" id="page-stats">
+        <div class="grid-2" style="margin-bottom:1.5rem">
+          <div class="panel">
+            <div class="panel-title">Receitas × Despesas (6 meses)</div>
+            <div style="position:relative;height:240px"><canvas id="bar-chart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Distribuição de gastos</div>
+            <div style="position:relative;height:240px"><canvas id="donut-chart"></canvas></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Saldo acumulado (6 meses)</div>
+          <div style="position:relative;height:200px"><canvas id="balance-chart"></canvas></div>
+        </div>
+      </div>
+    </main>
+  </div>
 </div>
-</div><!-- /app-screen -->
 
 <script>
 // ================================================================
@@ -396,245 +415,57 @@ const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out
 const CAT_COLORS   = {'Alimentação':'#2e6db4','Transporte':'#d85a30','Saúde':'#1a9e72','Lazer':'#b87515','Moradia':'#7a6fc0','Educação':'#0e7a6c','Vestuário':'#c45580','Salário':'#1a9e72','Freelance':'#2bb5a0','Assinaturas':'#6477b5','Investimentos':'#3a9e5a','Extras':'#8a7455','Outros':'#888780'};
 const CAT_ICONS    = {'Alimentação':'fa-utensils','Transporte':'fa-car','Saúde':'fa-heart-pulse','Lazer':'fa-gamepad','Moradia':'fa-house','Educação':'fa-book-open','Vestuário':'fa-shirt','Salário':'fa-briefcase','Freelance':'fa-laptop','Assinaturas':'fa-rotate','Investimentos':'fa-chart-line','Extras':'fa-star','Outros':'fa-ellipsis'};
 const PAGE_TITLES  = {dashboard:'Painel',transactions:'Transações',add:'Nova Transação',goals:'Metas',stats:'Estatísticas'};
-const JSONBIN_API  = 'https://api.jsonbin.io/v3';
-const MASTER_KEY   = '$2a$10$H8/dbUWlIFxYwYbkKH/iwuYxlNFW1ycU9EmaWExCh7/XVeVCe1C3O';
 
 // ================================================================
 // STATE
 // ================================================================
-let viewMonth = new Date().getMonth();
-let viewYear  = new Date().getFullYear();
-let txType    = 'expense';
-let txFilter  = 'all';
+let viewMonth  = new Date().getMonth();
+let viewYear   = new Date().getFullYear();
+let txType     = 'expense';
+let txFilter   = 'all';
 let trendChart = null, barChart = null, donutChart = null, balanceChart = null;
-let syncTimer  = null;
-let isSyncing  = false;
-let SESSION    = { user: '', apiKey: '', binId: '' };
+let unsubscribe = null; // listener do Firestore em tempo real
+let currentTab  = 'login';
+
+let data = { transactions: [], goals: [], nextId: 1 };
 
 // ================================================================
-// HASHING  — deriva um ID estável a partir de usuário+senha
-// (SHA-256 via Web Crypto, sem dependências)
+// UTILS
 // ================================================================
-async function sha256hex(str) {
-  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+const fmt      = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtShort = v => v >= 1000 ? 'R$'+(v/1000).toFixed(1)+'k' : 'R$'+v.toFixed(0);
+
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color || '#1a1a18';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-// Gera uma chave de localStorage específica por usuário
-async function userStorageKey(user, pass) {
-  const h = await sha256hex('fpro:' + user.toLowerCase().trim() + ':' + pass);
-  return 'fpro_session_' + h.slice(0, 16);
-}
-
-// ================================================================
-// SESSION STORAGE
-// Guarda sessão entre reloads: { user, binId }
-// A senha nunca é salva — só o binId derivado dela
-// ================================================================
-async function loadSession(user, pass) {
-  const key = await userStorageKey(user, pass);
-  try { return JSON.parse(localStorage.getItem(key)) || null; }
-  catch(e) { return null; }
-}
-
-async function saveSession(user, pass, binId) {
-  const key = await userStorageKey(user, pass);
-  localStorage.setItem(key, JSON.stringify({ binId }));
-  // Salva auto-login: só o user (sem senha) para preencher o campo
-  localStorage.setItem('fpro_autologin', JSON.stringify({ user }));
-}
-
-async function clearSession(user, pass) {
-  const key = await userStorageKey(user, pass);
-  localStorage.removeItem(key);
-  localStorage.removeItem('fpro_autologin');
-  clearAutoSession();
-}
-
-// ================================================================
-// LOGIN FLOW
-// ================================================================
-async function doLogin() {
-  const user  = document.getElementById('login-user').value.trim();
-  const pass  = document.getElementById('login-pass').value;
-  const errEl = document.getElementById('login-error');
-  const btn   = document.getElementById('login-btn');
-
-  errEl.textContent = '';
-  if (!user || !pass) { errEl.textContent = 'Preencha usuário e senha.'; return; }
-
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
-
-  SESSION.user   = user;
-  SESSION.apiKey = MASTER_KEY;
-
-  let session = await loadSession(user, pass);
-  if (session && session.binId) {
-    SESSION.binId = session.binId;
-    saveAutoSession(user, session.binId);
-    await bootApp(user, pass);
-  } else {
-    const binName = 'fpro_' + (await sha256hex(user.toLowerCase().trim()+':'+pass)).slice(0,12);
-    SESSION.binId = await findOrCreateBin(binName, pass);
-    if (!SESSION.binId) {
-      errEl.textContent = 'Erro ao conectar à nuvem. Tente novamente.';
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
-      return;
-    }
-    await saveSession(user, pass, SESSION.binId);
-    saveAutoSession(user, SESSION.binId);
-    await bootApp(user, pass, true);
-  }
-}
-
-// Encontra ou cria o bin de dados do usuário.
-// Usa um "bin de índice" público com nome previsível para guardar o ID do bin de dados.
-// Assim qualquer dispositivo com a key consegue encontrar o bin certo.
-async function findOrCreateBin(binName) {
-  // O bin de índice tem nome previsível = binName + '_idx'
-  // Ele é público (só leitura sem key) e guarda apenas { dataBinId }
-  const idxName = binName + '_idx';
-
-  showLoading('Procurando seus dados na nuvem...');
-
-  // Passo 1: tenta criar o bin de índice
-  // Se já existir, o JSONBin retorna 400 — nesse caso buscamos pelo ID guardado no localStorage
-  // como fallback, ou listamos os bins da conta
-  try {
-    // Tenta listar bins para encontrar o de índice pelo nome
-    const listRes = await fetch(`${JSONBIN_API}/b`, {
-      headers: { 'X-Master-Key': MASTER_KEY }
-    });
-
-    if (listRes.ok) {
-      const bins = await listRes.json();
-      // Procura bin de índice pelo nome
-      const idxBin = Array.isArray(bins) && bins.find(b => b.name === idxName);
-      if (idxBin) {
-        // Lê o bin de índice para pegar o dataBinId
-        showLoading('Carregando sua conta...');
-        const idxRead = await fetch(`${JSONBIN_API}/b/${idxBin.id}/latest`, {
-          headers: { 'X-Master-Key': MASTER_KEY }
-        });
-        if (idxRead.ok) {
-          const idxData = await idxRead.json();
-          if (idxData.record && idxData.record.dataBinId) {
-            hideLoading();
-            return idxData.record.dataBinId;
-          }
-        }
-      }
-    }
-  } catch(e) { console.warn('list bins failed:', e); }
-
-  // Passo 2: cria bin de dados novo
-  showLoading('Criando seu espaço na nuvem...');
-  try {
-    const dataRes = await fetch(`${JSONBIN_API}/b`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Name': binName,
-        'X-Bin-Private': 'true'
-      },
-      body: JSON.stringify(defaultData())
-    });
-    if (!dataRes.ok) { hideLoading(); return ''; }
-    const dataJson = await dataRes.json();
-    const dataBinId = dataJson.metadata.id;
-
-    // Passo 3: cria bin de índice guardando o dataBinId
-    await fetch(`${JSONBIN_API}/b`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY,
-        'X-Bin-Name': idxName,
-        'X-Bin-Private': 'false'
-      },
-      body: JSON.stringify({ dataBinId })
-    });
-
-    hideLoading();
-    return dataBinId;
-  } catch(e) {
-    hideLoading();
-    console.error(e);
-    return '';
-  }
-}
-
-async function bootApp(user, pass, isNew = false) {
-  showLoading('Carregando seus dados...');
-  document.getElementById('user-avatar').textContent  = user.charAt(0).toUpperCase();
-  document.getElementById('user-name-label').textContent = user;
-
-  // Carrega dados da nuvem
-  const ok = await cloudLoad();
-  hideLoading();
-
-  if (!ok && isNew) {
-    // Primeiro acesso — dados já foram criados na nuvem como defaultData
-    showToast('Conta criada! Bem-vindo(a), ' + user + '! 🎉', '#1a9e72');
-  } else if (ok) {
-    showToast('Bem-vindo(a) de volta, ' + user + '! ☁️', '#1a9e72');
-  }
-
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display   = 'block';
-
-  const now = new Date();
-  document.getElementById('today-str').textContent = now.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  document.getElementById('tx-date').value = now.toISOString().split('T')[0];
-
-  const savedTheme = localStorage.getItem('fpro_theme');
-  if (savedTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme','dark');
-    document.getElementById('theme-icon').className = 'fa-solid fa-sun';
-    document.getElementById('theme-label').textContent = 'Modo claro';
-  }
-
-  setSyncStatus('synced', 'Sincronizado');
-  renderDashboard();
-
-  const loginBtn = document.getElementById('login-btn');
-  loginBtn.disabled = false;
-  loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
-}
-
-function doLogout() {
-  if (!confirm('Sair da conta?')) return;
-  SESSION = { user:'', apiKey:'', binId:'' };
-  document.getElementById('app-screen').style.display   = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-pass').value = '';
-  localStorage.removeItem('fpro_autologin');
-  clearAutoSession();
-}
-
-// ================================================================
-// LOADING OVERLAY
-// ================================================================
 function showLoading(msg) {
   document.getElementById('loading-msg').textContent = msg || 'Carregando...';
   document.getElementById('loading-overlay').style.display = 'flex';
 }
+
 function hideLoading() {
   document.getElementById('loading-overlay').style.display = 'none';
 }
 
-// Allow login on Enter key
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
-    doLogin();
-  }
-});
+function setSyncStatus(state, label) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + state;
+  document.getElementById('sync-label').textContent = label;
+}
+
+function monthTx(m, y) {
+  return data.transactions.filter(t => {
+    const d = new Date(t.date + 'T12:00:00');
+    return d.getMonth() === m && d.getFullYear() === y;
+  });
+}
 
 // ================================================================
-// DATA
+// DEFAULT DATA
 // ================================================================
 function defaultData() {
   const y  = new Date().getFullYear();
@@ -666,97 +497,164 @@ function defaultData() {
   };
 }
 
-let data = defaultData();
-
-function saveLocal() {
-  try { localStorage.setItem('financaspro_v2_' + SESSION.user, JSON.stringify(data)); } catch(e){}
-}
-
 // ================================================================
-// CLOUD SYNC
+// FIREBASE — aguarda módulo carregar
 // ================================================================
-function setSyncStatus(state, label) {
-  const dot = document.getElementById('sync-dot');
-  const lbl = document.getElementById('sync-label');
-  dot.className = 'sync-dot ' + state;
-  lbl.textContent = label;
-}
+window.addEventListener('firebase-ready', () => {
+  const { onAuthStateChanged } = window._fbFns;
 
-async function cloudLoad() {
-  if (!SESSION.binId) return false;
-  setSyncStatus('syncing','Carregando...');
-  try {
-    const res = await fetch(`${JSONBIN_API}/b/${SESSION.binId}/latest`, {
-      headers: { 'X-Master-Key': MASTER_KEY }
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    data = json.record;
-    saveLocal();
-    setSyncStatus('synced','Sincronizado');
-    return true;
-  } catch(e) {
-    setSyncStatus('error','Erro na nuvem');
-    console.error(e);
-    // Tenta fallback no localStorage
-    try {
-      const local = JSON.parse(localStorage.getItem('financaspro_v2_' + SESSION.user));
-      if (local) { data = local; }
-    } catch(_){}
-    return false;
-  }
-}
-
-async function cloudSave() {
-  if (!SESSION.binId || isSyncing) return;
-  isSyncing = true;
-  setSyncStatus('syncing','Salvando...');
-  try {
-    const res = await fetch(`${JSONBIN_API}/b/${SESSION.binId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY
-      },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    setSyncStatus('synced','Sincronizado');
-  } catch(e) {
-    setSyncStatus('error','Erro ao salvar');
-    console.error(e);
-  } finally {
-    isSyncing = false;
-  }
-}
-
-function save() {
-  saveLocal();
-  clearTimeout(syncTimer);
-  setSyncStatus('syncing','Aguardando...');
-  syncTimer = setTimeout(cloudSave, 1500);
-}
-
-// ================================================================
-// UTILS
-// ================================================================
-const fmt      = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmtShort = v => v >= 1000 ? 'R$'+(v/1000).toFixed(1)+'k' : 'R$'+v.toFixed(0);
-
-function showToast(msg, color) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = color || 'var(--text)';
-  t.style.color = '#fff';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
-
-function monthTx(m, y) {
-  return data.transactions.filter(t => {
-    const d = new Date(t.date + 'T12:00:00');
-    return d.getMonth() === m && d.getFullYear() === y;
+  // Observa estado de autenticação — Firebase já mantém sessão sozinho
+  onAuthStateChanged(window._auth, async (user) => {
+    if (user) {
+      // Usuário logado (ou sessão restaurada automaticamente)
+      await initApp(user);
+    } else {
+      // Não logado — mostra tela de login
+      hideLoading();
+      document.getElementById('login-screen').style.display = 'flex';
+    }
   });
+});
+
+// ================================================================
+// LOGIN / CADASTRO
+// ================================================================
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('login-btn-label').textContent = tab === 'login' ? 'Entrar' : 'Criar conta';
+  document.getElementById('login-error').textContent = '';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
+
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aguarde...';
+
+  const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = window._fbFns;
+
+  try {
+    if (currentTab === 'login') {
+      await signInWithEmailAndPassword(window._auth, email, pass);
+    } else {
+      await createUserWithEmailAndPassword(window._auth, email, pass);
+    }
+    // onAuthStateChanged cuida do resto automaticamente
+  } catch(e) {
+    errEl.textContent = translateFirebaseError(e.code);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span id="login-btn-label">' + (currentTab === 'login' ? 'Entrar' : 'Criar conta') + '</span>';
+  }
+}
+
+function translateFirebaseError(code) {
+  const map = {
+    'auth/invalid-email':         'E-mail inválido.',
+    'auth/user-not-found':        'Usuário não encontrado.',
+    'auth/wrong-password':        'Senha incorreta.',
+    'auth/invalid-credential':    'E-mail ou senha incorretos.',
+    'auth/email-already-in-use':  'Este e-mail já está cadastrado.',
+    'auth/weak-password':         'Senha muito fraca (mínimo 6 caracteres).',
+    'auth/too-many-requests':     'Muitas tentativas. Aguarde um momento.',
+    'auth/network-request-failed':'Sem conexão com a internet.',
+  };
+  return map[code] || 'Erro: ' + code;
+}
+
+async function doLogout() {
+  if (!confirm('Sair da conta?')) return;
+  if (unsubscribe) unsubscribe(); // para o listener em tempo real
+  const { signOut } = window._fbFns;
+  await signOut(window._auth);
+  data = { transactions: [], goals: [], nextId: 1 };
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ================================================================
+// INIT APP (após login)
+// ================================================================
+async function initApp(user) {
+  showLoading('Carregando seus dados...');
+
+  // Atualiza UI com info do usuário
+  const label = user.email.split('@')[0];
+  document.getElementById('user-avatar').textContent    = label.charAt(0).toUpperCase();
+  document.getElementById('user-name-label').textContent = label;
+
+  const now = new Date();
+  document.getElementById('today-str').textContent = now.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('tx-date').value = now.toISOString().split('T')[0];
+
+  const savedTheme = localStorage.getItem('fpro_theme');
+  if (savedTheme === 'dark') {
+    document.documentElement.setAttribute('data-theme','dark');
+    document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+    document.getElementById('theme-label').textContent = 'Modo claro';
+  }
+
+  // Garante que o documento do usuário existe no Firestore
+  const { doc, getDoc, setDoc, onSnapshot } = window._fbFns;
+  const userDoc = doc(window._db, 'users', user.uid);
+  const snap    = await getDoc(userDoc);
+
+  if (!snap.exists()) {
+    // Primeiro acesso: cria documento com dados de exemplo
+    await setDoc(userDoc, defaultData());
+    showToast('Conta criada! Bem-vindo(a)! 🎉', '#1a9e72');
+  }
+
+  // ── LISTENER EM TEMPO REAL ──────────────────────────────────
+  // Qualquer mudança no Firestore (de qualquer dispositivo) atualiza o app na hora
+  if (unsubscribe) unsubscribe();
+  unsubscribe = onSnapshot(userDoc, (snapshot) => {
+    if (snapshot.exists()) {
+      data = snapshot.data();
+      setSyncStatus('synced', 'Sincronizado');
+      renderDashboard();
+      const activePage = document.querySelector('.page.active');
+      if (activePage) {
+        const id = activePage.id.replace('page-', '');
+        if (id === 'transactions') renderTransactions();
+        if (id === 'goals')        renderGoals();
+        if (id === 'stats')        renderStats();
+      }
+    }
+  }, (err) => {
+    setSyncStatus('error', 'Erro de sync');
+    console.error(err);
+  });
+
+  hideLoading();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display   = 'block';
+  showToast('Bem-vindo(a)! ☁️', '#1a9e72');
+}
+
+// ================================================================
+// SAVE — grava no Firestore (sync automático para todos dispositivos)
+// ================================================================
+async function save() {
+  setSyncStatus('syncing', 'Salvando...');
+  try {
+    const { doc, setDoc } = window._fbFns;
+    const user    = window._auth.currentUser;
+    const userDoc = doc(window._db, 'users', user.uid);
+    await setDoc(userDoc, data);
+    // setSyncStatus será chamado pelo onSnapshot automaticamente
+  } catch(e) {
+    setSyncStatus('error', 'Erro ao salvar');
+    showToast('Erro ao salvar. Verifique sua conexão.', '#d85a30');
+    console.error(e);
+  }
 }
 
 // ================================================================
@@ -777,6 +675,11 @@ function switchPage(id, btn) {
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('open'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); }
+
+// ENTER no login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
+});
 
 // ================================================================
 // THEME
@@ -826,7 +729,7 @@ function renderDashboard() {
     ? sorted.map(([cat,val])=>`<div class="cat-row"><div class="cat-row-top"><span class="cat-name"><i class="fa-solid ${CAT_ICONS[cat]||'fa-circle'}" style="color:${CAT_COLORS[cat]||'#888'};font-size:13px"></i>${cat}</span><span class="cat-val">${fmt(val)}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${Math.round((val/max)*100)}%;background:${CAT_COLORS[cat]||'#888'}"></div></div></div>`).join('')
     : '<div class="empty">Sem despesas neste mês.</div>';
 
-  document.getElementById('recent-list').innerHTML = data.transactions.slice(0,6).map(txRow).join('') || '<div class="empty">Nenhuma transação ainda.</div>';
+  document.getElementById('recent-list').innerHTML = (data.transactions||[]).slice(0,6).map(txRow).join('') || '<div class="empty">Nenhuma transação ainda.</div>';
   renderTrendChart();
 }
 
@@ -841,8 +744,6 @@ function deleteTx(id) {
   if (!confirm('Excluir esta transação?')) return;
   data.transactions = data.transactions.filter(t=>t.id!==id);
   save();
-  renderDashboard();
-  if (document.getElementById('page-transactions').classList.contains('active')) renderTransactions();
   showToast('Transação excluída.','#d85a30');
 }
 
@@ -869,9 +770,8 @@ function setFilter(f,el){
   el.classList.add('active');
   renderTransactions();
 }
-
 function renderTransactions(){
-  let txs=[...data.transactions];
+  let txs=[...(data.transactions||[])];
   if(txFilter!=='all') txs=txs.filter(t=>t.type===txFilter);
   document.getElementById('all-tx-list').innerHTML=txs.length?txs.map(txRow).join(''):'<div class="empty">Nenhuma transação encontrada.</div>';
 }
@@ -884,7 +784,6 @@ function setTxType(t){
   document.getElementById('btn-exp').className='type-btn'+(t==='expense'?' active-exp':'');
   document.getElementById('btn-inc').className='type-btn'+(t==='income'?' active-inc':'');
 }
-
 function addTransaction(){
   const desc=document.getElementById('tx-desc').value.trim();
   const amount=parseFloat(document.getElementById('tx-amount').value);
@@ -892,6 +791,7 @@ function addTransaction(){
   const cat=document.getElementById('tx-cat').value;
   const fb=document.getElementById('add-feedback');
   if(!desc||!amount||!date){fb.textContent='⚠ Preencha todos os campos.';fb.style.color='var(--red)';return;}
+  if(!data.transactions) data.transactions=[];
   data.transactions.unshift({id:data.nextId++,desc,amount,type:txType,cat,date});
   save();
   document.getElementById('tx-desc').value='';
@@ -908,26 +808,23 @@ function addGoal(){
   const target=parseFloat(document.getElementById('goal-target').value)||0;
   const saved=parseFloat(document.getElementById('goal-saved').value)||0;
   if(!name||!target){showToast('Preencha nome e valor alvo.','#d85a30');return;}
+  if(!data.goals) data.goals=[];
   data.goals.push({id:data.nextId++,name,target,saved});
   save();
   document.getElementById('goal-name').value='';
   document.getElementById('goal-target').value='';
   document.getElementById('goal-saved').value='';
-  renderGoals();
   showToast('Meta criada!','#1a9e72');
 }
-
 function deleteGoal(id){
   if(!confirm('Excluir esta meta?')) return;
   data.goals=data.goals.filter(g=>g.id!==id);
   save();
-  renderGoals();
   showToast('Meta excluída.','#d85a30');
 }
-
 function renderGoals(){
-  document.getElementById('goals-list').innerHTML=data.goals.length
-    ?data.goals.map(g=>{
+  document.getElementById('goals-list').innerHTML=(data.goals||[]).length
+    ?(data.goals||[]).map(g=>{
       const pct=Math.min(100,Math.round((g.saved/g.target)*100));
       const rem=Math.max(0,g.target-g.saved);
       return `<div class="goal-item"><div class="goal-header"><span class="goal-name">${g.name}</span><div style="display:flex;align-items:center;gap:8px"><span class="goal-pct">${pct}%</span><button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px" onclick="deleteGoal(${g.id})" title="Excluir"><i class="fa-solid fa-trash-can"></i></button></div></div><div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div><div class="goal-sub"><span>${fmt(g.saved)}</span><span>Faltam ${fmt(rem)} de ${fmt(g.target)}</span></div></div>`;
@@ -969,69 +866,13 @@ function renderStats(){
 // ================================================================
 function exportCSV(){
   const header='Data,Descrição,Categoria,Tipo,Valor\n';
-  const rows=data.transactions.map(t=>`${t.date},"${t.desc}",${t.cat},${t.type==='income'?'Receita':'Despesa'},${t.amount.toFixed(2)}`).join('\n');
+  const rows=(data.transactions||[]).map(t=>`${t.date},"${t.desc}",${t.cat},${t.type==='income'?'Receita':'Despesa'},${t.amount.toFixed(2)}`).join('\n');
   const blob=new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='gastos.csv';a.click();
+  const a=document.createElement('a');a.href=url;a.download='gastos.csv';a.click();
   URL.revokeObjectURL(url);
   showToast('CSV exportado!','#1a9e72');
 }
-
-// ================================================================
-// AUTO-LOGIN: salva user+binId no localStorage para não pedir login
-// ao recarregar a página. A senha não é salva.
-// ================================================================
-function saveAutoSession(user, binId) {
-  localStorage.setItem('fpro_active_session', JSON.stringify({ user, binId }));
-}
-
-function loadAutoSession() {
-  try { return JSON.parse(localStorage.getItem('fpro_active_session')) || null; }
-  catch(e) { return null; }
-}
-
-function clearAutoSession() {
-  localStorage.removeItem('fpro_active_session');
-}
-
-// Inicia: tenta auto-login ou mostra tela de login
-(async () => {
-  const savedTheme = localStorage.getItem('fpro_theme');
-  if (savedTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme','dark');
-    document.getElementById('theme-icon').className = 'fa-solid fa-sun';
-    document.getElementById('theme-label').textContent = 'Modo claro';
-  }
-
-  // Tenta restaurar sessão salva (mantém logado após reload)
-  const autoSess = loadAutoSession();
-  if (autoSess && autoSess.user && autoSess.binId) {
-    SESSION.user   = autoSess.user;
-    SESSION.apiKey = MASTER_KEY;
-    SESSION.binId  = autoSess.binId;
-
-    document.getElementById('user-avatar').textContent   = autoSess.user.charAt(0).toUpperCase();
-    document.getElementById('user-name-label').textContent = autoSess.user;
-
-    showLoading('Sincronizando dados...');
-    const now = new Date();
-    document.getElementById('today-str').textContent = now.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    document.getElementById('tx-date').value = now.toISOString().split('T')[0];
-
-    await cloudLoad();
-    hideLoading();
-
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display   = 'block';
-    setSyncStatus('synced', 'Sincronizado');
-    renderDashboard();
-    return;
-  }
-
-  // Nenhuma sessão — mostra tela de login
-  document.getElementById('login-screen').style.display = 'flex';
-})();
 </script>
 </body>
 </html>
